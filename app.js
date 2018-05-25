@@ -1,9 +1,11 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 var Twit = require('twit');
+var config = require('./config').config;
 var friendList = [];
 var friendList_screenname = [];
 var message_events = [];
+var user_screen_name;
 var message_id = [];
 var message_text = [];
 var sender_name = [];
@@ -22,46 +24,45 @@ const app = express();
 app.use(express.static(__dirname + '/public'));
 app.set('view engine', 'pug');
 
-var T = new Twit({
-	consumer_key: 'lJTdQcuELzyXEfhGQaDu3aIeY',
-	consumer_secret: 'On5fXsykKpAkXvFEKSXKaRywrvggWb6SJiGx8jXJetGabEvAzJ',
-	access_token: '815399610474758144-KuqfIkIuJ67U4WTHlo1RjUgUWOQKbY4',
-	access_token_secret: 'FiS7qwUP2u7IzRddcJsP8YfCz7CMx4cMyjmgmFrfaT8do',
-	timeout_ms: 60*1000,
-});
+var T = new Twit(config);
 
 function parseTwitterDate(tdate) {
     var system_date = new Date(Date.parse(tdate));
     var user_date = new Date();
-    //if (K.ie) {
-      //  system_date = Date.parse(tdate.replace(/( \+)/, ' UTC$1'))
-    //}
+    // if (K.ie) {
+    //    system_date = Date.parse(tdate.replace(/( \+)/, ' UTC$1'))
+    // }
     var diff = Math.floor((user_date - system_date) / 1000);
     if (diff <= 1) {return "just now";}
-    if (diff < 20) {return diff + " seconds ago";}
-    if (diff < 40) {return "half a minute ago";}
-    if (diff < 60) {return "less than a minute ago";}
-    if (diff <= 90) {return "one minute ago";}
-    if (diff <= 3540) {return Math.round(diff / 60) + " minutes ago";}
-    if (diff <= 5400) {return "1 hour ago";}
-    if (diff <= 86400) {return Math.round(diff / 3600) + " hours ago";}
-    if (diff <= 129600) {return "1 day ago";}
-    if (diff < 604800) {return Math.round(diff / 86400) + " days ago";}
-    if (diff <= 777600) {return "1 week ago";}
-    return "on " + system_date;
+    else if (diff < 20) {return diff + " seconds ago";}
+    else if (diff < 40) {return "half a minute ago";}
+    else if (diff < 60) {return "less than a minute ago";}
+    else if (diff <= 90) {return "one minute ago";}
+    else if (diff <= 3540) {return Math.round(diff / 60) + " minutes ago";}
+    else if (diff <= 5400) {return "1 hour ago";}
+    else if (diff <= 86400) {return Math.round(diff / 3600) + " hours ago";}
+    else if (diff <= 129600) {return "1 day ago";}
+    else if (diff < 604800) {return Math.round(diff / 86400) + " days ago";}
+    else if (diff <= 777600) {return "1 week ago";}
+    else{
+    	return "on " + system_date.toDateString().slice(4, 10);
+	}
 }
 
-// from http://widgets.twimg.com/j/1/widget.js
+
 // var K = function () {
 //     var a = navigator.userAgent;
+//     console.log(a);
 //     return {
 //         ie: a.match(/MSIE\s([^;]*)/)
 //     }
 // }();
 
 app.get('/', (req, res) => {
-
-	T.get('statuses/user_timeline', { screen_name: 'YangBai14', count: 5 }, function(err, data, response) {
+    T.get('account/verify_credentials', function(err, data, response){
+    	user_screen_name = data.screen_name;
+    }).then(function(result){
+	T.get('statuses/user_timeline', { screen_name: user_screen_name, count: 5 }, function(err, data, response) {
 	profile_url = data[0].user.profile_image_url;
 	for(let i = 0; i < data.length; i++)
 	{
@@ -72,7 +73,7 @@ app.get('/', (req, res) => {
 		liked_counts.push(data[i].favorite_count);
 	}
 }).then(function(result){
-	T.get('friends/list', { screen_name: 'YangBai14', count: 5 },  function (err, data, response) {
+	T.get('friends/list', { screen_name: user_screen_name, count: 5 },  function (err, data, response) {
 	  for(let i = 0; i < 5; i++)
 	  {
 	  	friendList.push(data.users[i].name);
@@ -93,7 +94,7 @@ app.get('/', (req, res) => {
 			    	T.get('direct_messages/show', { id: message_id[m] }, function(err, message, response) {
 			    	//onsole.log(message.text);
 			    		//console.log(message.text);
-			    		if(message.sender.screen_name != 'YangBai14')
+			    		if(message.sender.screen_name != user_screen_name)
 			    		{
 			    			other_screen_name = message.sender.screen_name;
 			    		}
@@ -115,6 +116,7 @@ app.get('/', (req, res) => {
 			        });	
 		})
 	});
+   });
 });
 
 app.listen(3000, () => {
